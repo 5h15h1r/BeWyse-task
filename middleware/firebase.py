@@ -23,23 +23,21 @@ class FirebaseMiddleware:
                         options={"verify_signature": False},
                     )
                     user_id = decoded_token["uid"]
-                    print(user_id)
                     expiry_time = decoded_token["exp"]
                     current_time = time.time()
                     if current_time > expiry_time:
                         return None
                     else:
                         user = User.objects.get(id=user_id)
-                        request.user = user
+                        request.authUser = user
                 except Exception as e:
-                    print(e)
                     user = None
             else:
                 user = None
             return user
 
-        request.user = SimpleLazyObject(_get_user)
-        if request.user is None:
+        request.authUser = SimpleLazyObject(_get_user)
+        if request.authUser is None:
             return Response(
                 {"message": "User is not authorized or the token has expired"},
                 status=status.HTTP_401_UNAUTHORIZED,

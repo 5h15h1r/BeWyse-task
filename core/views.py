@@ -22,6 +22,8 @@ class RegisterView(APIView):
     def post(self, request):
         email = request.data.get("email")
         password = request.data.get("password")
+        first_name = request.data.get("first_name")
+        last_name = request.data.get("last_name")
 
         if not email or not password:
             return Response(
@@ -46,6 +48,7 @@ class RegisterView(APIView):
             if not username:
                 username = generate_unique_usernames(email)
                 user.username = username
+
             user.set_password(password)
             user.save()
 
@@ -81,6 +84,7 @@ class LoginView(APIView):
                     "full_name": fullname,
                     "token": custom_token,
                 }
+
                 return Response(
                     loginData,
                     status=status.HTTP_200_OK,
@@ -95,9 +99,8 @@ class LoginView(APIView):
 class ViewProfile(APIView):
     def get(self, request):
         username = request.data.get("username")
-        user = request.user
-        allUsers = User.objects.all()
-        if user not in allUsers:
+        user = request.authUser
+        if user is None:
             return Response(
                 {"message": "User not authorized"},
                 status=status.HTTP_401_UNAUTHORIZED,
@@ -138,36 +141,35 @@ class UpdateProfile(APIView):
         username = request.data.get("username")
         first_name = request.data.get("first_name")
         last_name = request.data.get("last_name")
-        user = request.user
-        print(user)
-        allUsers = User.objects.all()
-        if user not in allUsers:
+        user = request.authUser
+
+        if user is None:
             return Response(
                 {"message": "User not authorized"},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        if user is not None:
-            if first_name is not None:
-                user.first_name = first_name
-            if last_name is not None:
-                user.first_name = first_name
-            if username is not None:
-                user.first_name = first_name
-            full_name = get_full_name(user.first_name, user.last_name)
-            data = {
-                "username": user.username,
-                "email": user.email,
-                "full_name": full_name,
-            }
-            serializer = UserSerializer(data=data)
-            if serializer.is_valid():
-                return Response(
-                    serializer.data,
-                    status=status.HTTP_200_OK,
-                )
-            else:
-                return Response(
-                    serializer.errors,
-                    status=status.HTTP_200_OK,
-                )
+        if first_name is not None:
+            user.first_name = first_name
+        if last_name is not None:
+            user.last_name = last_name
+        if username is not None:
+            user.username = username
+        full_name = get_full_name(user.first_name, user.last_name)
+        data = {
+            "username": user.username,
+            "email": user.email,
+            "full_name": full_name,
+        }
+        serializer = UserSerializer(data=data)
+        if serializer.is_valid():
+            user.save()
+            return Response(
+                serializer.data,
+                status=status.HTTP_200_OK,
+            )
+        else:
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST,
+            )
